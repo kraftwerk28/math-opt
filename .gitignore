@@ -1,1 +1,6 @@
 data/
+test*/
+iter*/
+*.txt
+__pycache__/
+
