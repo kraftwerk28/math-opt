@@ -11,8 +11,8 @@ class JG:
         self.iters = []
         self.headers = []
         self.free_variables = []  # s1, s2, s3 etc
-        self.target_row_idx = 0
-        self.pivots = []
+        self.target_row_idx = 0  # Z-equation row index (usually first row)
+        self.pivots = []  # Dumped pivot points just for logging
         self.is_maximizing = is_maximizing  # False -> min; True -> max
 
         if input_file is None:
@@ -46,7 +46,7 @@ class JG:
         )
         next_iter = iter_mtx(lastiter, piv)
         self.iters.append(next_iter)
-        if self.free_variables and self.headers:  # Swap variables label
+        if self.free_variables and self.headers:  # Swap variable labels
             row, col = piv
             t = self.free_variables[row - 1]
             self.free_variables[row - 1] = self.headers[col]
@@ -57,22 +57,22 @@ class JG:
         piv = self._choose_pivot()
         iter_mtx(self.iters[-1], piv)
 
-        def check_iter_end():
-            return any(
-                c < 0 if self.is_maximizing else c > 0
-                for c in self.iters[-1][self.target_row_idx][:-1]
-            )
-        while check_iter_end():
+        while self._check_iter_ended():
             self.iterate()
             self.print_iter(-1)
-            input()
 
     def add_mtx(self, mtx):
         self.iters.append(mtx)
 
+    def _check_iter_ended(self):
+        return any(
+            c < 0 if self.is_maximizing else c > 0
+            for c in self.iters[-1][self.target_row_idx][:-1]
+        )
+
     def print_iter(self, i=0):
         num = i + 1 if i > -1 else len(self.iters) + i
-        print(f'Iter #{num}:')
+        print(f'\nIteration #{num}:')
         if self.pivots:
             print(self.pivots[i])
 
@@ -89,7 +89,7 @@ class JG:
                 [str(c) for c in row]
                 for row in self.iters[i]
             ]
-        print(tabulate(tdata, headers=headers, tablefmt='grid'))
+        print(tabulate(tdata, headers=headers, tablefmt='psql'))
 
     def _choose_pivot(self) -> (int, int):
         lastiter = self.iters[-1]
@@ -119,13 +119,3 @@ class JG:
                             for it in row) for row in it
                 )
                 f.write(data + '\n')
-
-
-if __name__ == '__main__':
-    if len(sys.argv[1:]) < 2:
-        sys.exit(1)
-    inp, outdir = sys.argv[1:]
-
-    jg = JG(inp, is_maximizing=True)
-    jg.iterate_full()
-    jg.dump_matrices(outdir)
