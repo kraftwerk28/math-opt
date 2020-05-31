@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import sys
 from fractions import Fraction
@@ -6,14 +7,15 @@ import math
 from utils import *
 
 
-class JG:
-    def __init__(self, input_file: str = None, is_maximizing=True):
+class Simplex:
+    def __init__(self, input_file: str = None):
         self.iters = []
         self.headers = []
+        self.orig_headers = []  # Starting headers from input file, immutable
         self.free_variables = []  # s1, s2, s3 etc
         self.target_row_idx = 0  # Z-equation row index (usually first row)
         self.pivots = []  # Dumped pivot points just for logging
-        self.is_maximizing = is_maximizing  # False -> min; True -> max
+        self.doubling = False
 
         if input_file is None:
             return
@@ -24,10 +26,17 @@ class JG:
                 for s in f.readlines()
                 if s.strip()
             ]
+            if max_min[0] not in ('max', 'min'):
+                print('Missing min/max specifier.')
+                sys.exit(1)
             self.is_maximizing = max_min[0] == 'max'
             has_header = mtx[0][0][0].isalpha()
             if has_header:
                 self.headers = mtx[0]
+                self.orig_headers = self.headers[:]
+                if any(s[0] == 'r' for s in self.headers):
+                    self.doubling = True
+                    self.is_maximizing = False
                 self.free_variables = [
                     h for h in mtx[0]
                     if not h.startswith('x') and h != 'P'
@@ -60,6 +69,28 @@ class JG:
         while self._check_iter_ended():
             self.iterate()
             self.print_iter(-1)
+            if len(self.iters) > 40:  # Probably infinite loop
+                break
+        if self.doubling:
+            print('\nPerforming second stage of doubling simplex method...')
+            lastiter = self.iters[-1]
+            r_indices = [
+                i for i, it in enumerate(self.orig_headers)
+                if it.startswith('r')
+            ]
+            self.headers = [
+                c for i, c in enumerate(self.orig_headers)
+                if i not in r_indices
+            ]
+            next_iter = [
+                [c for i, c in enumerate(row) if i not in r_indices]
+                for row in lastiter[1:]
+            ]
+            self.free_variables = self.free_variables[1:]
+            self.iters.append(next_iter)
+            self.is_maximizing = True
+            self.doubling = False
+            self.iterate_full()
 
     def add_mtx(self, mtx):
         self.iters.append(mtx)
@@ -110,12 +141,15 @@ class JG:
         return (row_idx, col_idx)
 
     def dump_matrices(self, dirpath):
+        print('Dumping data to files...')
         os.makedirs(dirpath, exist_ok=True)
         for i, it in enumerate(self.iters):
             path = os.path.join(dirpath, f'iter{i}.txt')
             with open(path, 'w+') as f:
                 data = '\n'.join(
-                    ''.join(str(it).rjust(6)
-                            for it in row) for row in it
+                    ''.join(
+                        str(it).ljust(6)
+                        for it in row
+                    ).strip() for row in [self.headers] + it
                 )
                 f.write(data + '\n')
