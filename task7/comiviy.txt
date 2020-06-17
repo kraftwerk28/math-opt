@@ -1,0 +1,41 @@
+a b 10
+a c 2
+a d 6
+
+b e 9
+
+c b 1
+c e 4
+c j 10
+
+d c 8
+d f 6
+d g 6
+
+e h 3
+e i 3
+
+f e 9
+f h 2
+f i 5
+f g 4
+
+g i 10
+g j 1
+
+h k 7
+
+i h 3
+i j 4
+
+j k 5
+j l 2
+j m 10
+
+k n 3
+
+l k 6
+l n 5
+l m 10
+
+m n 10
